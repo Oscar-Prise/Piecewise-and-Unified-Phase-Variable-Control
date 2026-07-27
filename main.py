@@ -27,10 +27,10 @@ subject = "AB01"
 trial_start_sec = 1
 target_duration_sec = 31
 target_time_range = 31
-exo_ON = False
-scale_factor = 0.0
+exo_ON = True
+scale_factor = 0.2
 delay_factor = 0
-body_mass_kg = 80
+body_mass_kg = 70
 
 # Phase-variable method: "pw", "unified", or "auto" (Villarreal Sec. II-A)
 phase_method = "auto"
