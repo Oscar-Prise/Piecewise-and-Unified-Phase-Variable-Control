@@ -28,7 +28,7 @@ trial_start_sec = 1
 target_duration_sec = 31
 target_time_range = 31
 exo_ON = True
-scale_factor = 0.2
+scale_factor = 0.7
 delay_factor = 0
 body_mass_kg = 70
 
@@ -331,7 +331,7 @@ def main():
         else:
             cmdL, cmdR = 0.0, 0.0
 
-        motors.set_torque(cmdL, cmdR)
+        motors.set_torque(-cmdL, cmdR)
         (
             current_pos_L,
             current_vel_L,
