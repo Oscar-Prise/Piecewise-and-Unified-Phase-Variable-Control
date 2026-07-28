@@ -118,8 +118,8 @@ class PhaseVariableSegmenter:
         control_freq_Hz: float = 100.0,
         hip_cutoff_hz: float = 6.0,
         rhythmic_min_strides: int = 4,
-        rhythmic_cv_threshold: float = 0.10,
-        stride_duration_window: int = 8,
+        rhythmic_cv_threshold: float = 0.20,
+        stride_duration_window: int = 4,
         output_mode: PhaseOutputMode = PhaseOutputMode.AUTO,
         hip_integral_method: HipIntegralMethod = HipIntegralMethod.TRAPEZOID_POSITION,
     ) -> None:

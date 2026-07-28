@@ -45,8 +45,10 @@ stance_transition_s = 0.57
 hip_integral_method = "trapezoid"
 
 # Rhythmic detection for auto PW → unified transition
+# Looser than Villarreal defaults so contact noise / extra HS don't block unified as long.
 rhythmic_min_strides = 4
-rhythmic_cv_threshold = 0.10
+rhythmic_cv_threshold = 0.20
+stride_duration_window = 4
 
 # Trigger: "mocap" or "typing"
 trigger_type = "mocap"
@@ -232,6 +234,7 @@ def main():
         hip_cutoff_hz=hip_cutoff_hz,
         rhythmic_min_strides=rhythmic_min_strides,
         rhythmic_cv_threshold=rhythmic_cv_threshold,
+        stride_duration_window=stride_duration_window,
         output_mode=PhaseOutputMode(phase_method),
         hip_integral_method=HipIntegralMethod(hip_integral_method),
     )

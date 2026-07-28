@@ -126,10 +126,10 @@ def replay_motor_log(
 
 
 def _shade_mode_regions(ax, time: np.ndarray, mode: pd.Series) -> None:
-    """Background bands: PW = cool gray-blue, Unified = warm sand."""
-    colors = {"pw": "#d9e8f5", "unified": "#f5e6d3"}
+    """Background bands: PW = light blue (matches pw line), Unified = light orange (matches unified line)."""
+    colors = {"pw": "#cfe2f3", "unified": "#fce4c7"}
     labels_used = set()
-    modes = mode.astype(str).to_numpy()
+    modes = mode.astype(str).str.lower().to_numpy()
     if len(modes) == 0:
         return
 
@@ -140,11 +140,22 @@ def _shade_mode_regions(ax, time: np.ndarray, mode: pd.Series) -> None:
         m = modes[start]
         t0 = float(time[start])
         t1 = float(time[min(i, len(time) - 1)])
+        # Avoid zero-width spans when a mode lasts only one sample at the end.
+        if t1 <= t0 and i < len(time):
+            t1 = float(time[i]) if i < len(time) else t0
         label = None
         if m not in labels_used:
             label = f"Mode: {m}"
             labels_used.add(m)
-        ax.axvspan(t0, t1, facecolor=colors.get(m, "#eeeeee"), alpha=0.85, lw=0, label=label)
+        ax.axvspan(
+            t0,
+            t1,
+            facecolor=colors.get(m, "#eeeeee"),
+            alpha=0.9,
+            lw=0,
+            zorder=0,
+            label=label,
+        )
         start = i
 
 
@@ -198,8 +209,8 @@ def plot_phase_comparison(df: pd.DataFrame, save_path: str | None = None, show: 
 
 
 def _mode_series(df: pd.DataFrame, side: str) -> pd.Series:
-    """Accept either live-log phase_mode* or replay mode* column names."""
-    for key in (f"phase_mode{side}", f"mode{side}"):
+    """Prefer replay mode* (current auto rules); fall back to live phase_mode*."""
+    for key in (f"mode{side}", f"phase_mode{side}"):
         if key in df.columns:
             return df[key]
     return pd.Series(["pw"] * len(df))
@@ -315,7 +326,30 @@ if __name__ == "__main__":
     show = args.save is None
 
     if args.everything:
-        plot_everything(pd.read_csv(args.motor_csv), save_path=args.save, show=show)
+        live = pd.read_csv(args.motor_csv)
+        # Live phase_mode* may be all-pw on older trials; replay with current auto
+        # rules so Mode shading (blue PW / orange unified) reflects the switch.
+        replayed = replay_motor_log(
+            args.motor_csv,
+            contact_csv=args.contact_csv,
+            rom_deg=args.rom_deg,
+            output_mode=PhaseOutputMode(args.mode),
+        )
+        live = live.copy()
+        live["modeL"] = replayed["modeL"].to_numpy()
+        live["modeR"] = replayed["modeR"].to_numpy()
+        # Prefer replayed phase traces so active matches the shaded mode bands.
+        for col in (
+            "percent_gcL",
+            "percent_gcR",
+            "phi_pwL",
+            "phi_pwR",
+            "phi_unifiedL",
+            "phi_unifiedR",
+        ):
+            if col in replayed.columns:
+                live[col] = replayed[col].to_numpy()
+        plot_everything(live, save_path=args.save, show=show)
     else:
         df = replay_motor_log(
             args.motor_csv,
