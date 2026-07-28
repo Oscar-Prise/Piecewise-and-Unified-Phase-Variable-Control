@@ -28,7 +28,7 @@ trial_start_sec = 1
 target_duration_sec = 31
 target_time_range = 31
 exo_ON = True
-scale_factor = 0.7
+scale_factor = 0.5
 delay_factor = 0
 body_mass_kg = 70
 

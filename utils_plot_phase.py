@@ -1,7 +1,7 @@
 """Offline replay and comparison plots for phase-variable segmentation.
 
 To actually plot something, write something like this in the terminal:
-python utils_plot_phase.py "test_run\AB01_1_phase_auto_scale_0.2_input_motor.csv"
+python utils_plot_phase.py "test_run/AB01_1_phase_auto_scale_0.5_input_motor.csv"
 """
 
 from __future__ import annotations
