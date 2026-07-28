@@ -1,7 +1,9 @@
 """Offline replay and comparison plots for phase-variable segmentation.
 
-To actually plot something, write something like this in the terminal:
-python utils_plot_phase.py "test_run/AB01_1_phase_auto_scale_0.5_input_motor.csv"
+Examples:
+  python utils_plot_phase.py "test_run\\AB01_1_phase_auto_scale_0.5_input_motor.csv"
+  python utils_plot_phase.py "test_run\\AB01_1_phase_auto_scale_0.5_input_motor.csv" --everything
+  python utils_plot_phase.py "test_run\\AB01_1_phase_auto_scale_0.5_input_motor.csv" --everything --save out.png
 """
 
 from __future__ import annotations
@@ -195,6 +197,102 @@ def plot_phase_comparison(df: pd.DataFrame, save_path: str | None = None, show: 
     return fig
 
 
+def _mode_series(df: pd.DataFrame, side: str) -> pd.Series:
+    """Accept either live-log phase_mode* or replay mode* column names."""
+    for key in (f"phase_mode{side}", f"mode{side}"):
+        if key in df.columns:
+            return df[key]
+    return pd.Series(["pw"] * len(df))
+
+
+def plot_everything(
+    df: pd.DataFrame,
+    save_path: str | None = None,
+    show: bool = True,
+):
+    """Full diagnostic stack: phase L/R (active + PW + unified), hip encoders, contact.
+
+    Expects a motor log DataFrame (or equivalent) with columns like those written by
+    main.py: time, percent_gc*, phi_pw*, phi_unified*, mtr_pos_*, on_plate*, and
+    optionally phase_mode* / mode*.
+    """
+    time = df["time"].to_numpy()
+    fig, axes = plt.subplots(4, 1, figsize=(14, 10), sharex=True)
+
+    for ax, side in zip(axes[:2], ("L", "R")):
+        mode = _mode_series(df, side)
+        _shade_mode_regions(ax, time, mode)
+        ax.plot(
+            time,
+            df[f"percent_gc{side}"].to_numpy(),
+            color="#1a1a1a",
+            linewidth=1.4,
+            label="active",
+        )
+        if f"phi_pw{side}" in df.columns:
+            ax.plot(
+                time,
+                df[f"phi_pw{side}"].to_numpy(),
+                color="C0",
+                alpha=0.55,
+                linewidth=1.0,
+                label="pw",
+            )
+        if f"phi_unified{side}" in df.columns:
+            ax.plot(
+                time,
+                df[f"phi_unified{side}"].to_numpy(),
+                color="C1",
+                alpha=0.55,
+                linewidth=1.0,
+                label="unified",
+            )
+        ax.axhline(
+            DEFAULT_STANCE_TRANSITION,
+            color="#c0392b",
+            linestyle="--",
+            linewidth=1.0,
+            alpha=0.7,
+            label=f"PW stance→swing ({DEFAULT_STANCE_TRANSITION})",
+        )
+        ax.set_ylabel(f"Phase {side}")
+        ax.set_ylim(-0.05, 1.05)
+        ax.grid(True, alpha=0.35)
+        ax.legend(loc="upper right", ncol=2, fontsize=8)
+
+    if "mtr_pos_L" in df.columns and "mtr_pos_R" in df.columns:
+        axes[2].plot(time, df["mtr_pos_L"].to_numpy(), label="pos L")
+        axes[2].plot(time, df["mtr_pos_R"].to_numpy(), label="pos R")
+        axes[2].set_ylabel("Hip enc")
+        axes[2].grid(True, alpha=0.35)
+        axes[2].legend(loc="upper right")
+    else:
+        axes[2].set_ylabel("Hip enc (missing)")
+
+    if "on_plateL" in df.columns and "on_plateR" in df.columns:
+        axes[3].plot(time, df["on_plateL"].astype(float).to_numpy(), label="on L")
+        axes[3].plot(
+            time,
+            df["on_plateR"].astype(float).to_numpy() + 1.1,
+            label="on R (+1.1)",
+        )
+        axes[3].set_ylabel("Contact")
+        axes[3].set_yticks([0, 1, 1.1, 2.1])
+        axes[3].set_yticklabels(["0", "1", "0", "1"])
+        axes[3].grid(True, alpha=0.35)
+        axes[3].legend(loc="upper right")
+    else:
+        axes[3].set_ylabel("Contact (missing)")
+
+    axes[3].set_xlabel("Time (s)")
+    fig.tight_layout()
+    if save_path:
+        fig.savefig(save_path, dpi=120)
+    if show:
+        plt.show()
+    return fig
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("motor_csv", help="Path to *_input_motor.csv")
@@ -205,13 +303,24 @@ if __name__ == "__main__":
         choices=["pw", "unified", "auto"],
         default="auto",
     )
+    parser.add_argument(
+        "--everything",
+        action="store_true",
+        help="Plot live-log phase + PW + unified + hip encoders + contact",
+    )
     parser.add_argument("--save", default=None)
     args = parser.parse_args()
 
-    df = replay_motor_log(
-        args.motor_csv,
-        contact_csv=args.contact_csv,
-        rom_deg=args.rom_deg,
-        output_mode=PhaseOutputMode(args.mode),
-    )
-    plot_phase_comparison(df, save_path=args.save)
+    # Avoid blocking on plt.show() when writing a file from the CLI.
+    show = args.save is None
+
+    if args.everything:
+        plot_everything(pd.read_csv(args.motor_csv), save_path=args.save, show=show)
+    else:
+        df = replay_motor_log(
+            args.motor_csv,
+            contact_csv=args.contact_csv,
+            rom_deg=args.rom_deg,
+            output_mode=PhaseOutputMode(args.mode),
+        )
+        plot_phase_comparison(df, save_path=args.save, show=show)
