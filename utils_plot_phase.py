@@ -125,6 +125,18 @@ def replay_motor_log(
     return pd.DataFrame(rows)
 
 
+def _set_full_time_xlim(axes, time: np.ndarray) -> None:
+    """Force x-axis to the full trial span (no default padding / clipping)."""
+    if len(time) == 0:
+        return
+    t0 = float(np.min(time))
+    t1 = float(np.max(time))
+    if t1 <= t0:
+        t1 = t0 + 1e-3
+    for ax in np.atleast_1d(axes):
+        ax.set_xlim(t0, t1)
+
+
 def _shade_mode_regions(ax, time: np.ndarray, mode: pd.Series) -> None:
     """Background bands: PW = light blue (matches pw line), Unified = light orange (matches unified line)."""
     colors = {"pw": "#cfe2f3", "unified": "#fce4c7"}
@@ -199,6 +211,7 @@ def plot_phase_comparison(df: pd.DataFrame, save_path: str | None = None, show: 
     _plot_side(axes[0], time, df["percent_gcL"].to_numpy(), mode_l, "Phase L")
     _plot_side(axes[1], time, df["percent_gcR"].to_numpy(), mode_r, "Phase R")
     axes[1].set_xlabel("Time (s)")
+    _set_full_time_xlim(axes, time)
 
     fig.tight_layout()
     if save_path:
@@ -296,6 +309,7 @@ def plot_everything(
         axes[3].set_ylabel("Contact (missing)")
 
     axes[3].set_xlabel("Time (s)")
+    _set_full_time_xlim(axes, time)
     fig.tight_layout()
     if save_path:
         fig.savefig(save_path, dpi=120)

@@ -25,8 +25,8 @@ from utils_unified_phase import HipIntegralMethod
 # Trial
 subject = "AB01"
 trial_start_sec = 1
-target_duration_sec = 31
-target_time_range = 31
+target_duration_sec = 81
+target_time_range = 81
 exo_ON = True
 scale_factor = 0.5
 delay_factor = 0
@@ -45,9 +45,10 @@ stance_transition_s = 0.57
 hip_integral_method = "trapezoid"
 
 # Rhythmic detection for auto PW → unified transition
-# Looser than Villarreal defaults so contact noise / extra HS don't block unified as long.
+# Enter unified when CV is steady; exit only if CV gets much worse (hysteresis).
 rhythmic_min_strides = 4
 rhythmic_cv_threshold = 0.20
+rhythmic_cv_exit_threshold = 0.40
 stride_duration_window = 4
 
 # Trigger: "mocap" or "typing"
@@ -184,7 +185,7 @@ def exit_signal_handler(sig, frame):
 
     motors.disconnect()
 
-    save_data(trial_start_sec, target_duration_sec)
+    save_data(start_rec_sec=0, trial_time_sec=None)
     if gpio_pulse is not None:
         gpio_pulse.cleanup()
     if teleplot is not None:
@@ -234,6 +235,7 @@ def main():
         hip_cutoff_hz=hip_cutoff_hz,
         rhythmic_min_strides=rhythmic_min_strides,
         rhythmic_cv_threshold=rhythmic_cv_threshold,
+        rhythmic_cv_exit_threshold=rhythmic_cv_exit_threshold,
         stride_duration_window=stride_duration_window,
         output_mode=PhaseOutputMode(phase_method),
         hip_integral_method=HipIntegralMethod(hip_integral_method),

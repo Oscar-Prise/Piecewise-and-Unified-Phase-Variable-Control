@@ -119,6 +119,7 @@ class PhaseVariableSegmenter:
         hip_cutoff_hz: float = 6.0,
         rhythmic_min_strides: int = 4,
         rhythmic_cv_threshold: float = 0.20,
+        rhythmic_cv_exit_threshold: float = 0.40,
         stride_duration_window: int = 4,
         output_mode: PhaseOutputMode = PhaseOutputMode.AUTO,
         hip_integral_method: HipIntegralMethod = HipIntegralMethod.TRAPEZOID_POSITION,
@@ -129,6 +130,9 @@ class PhaseVariableSegmenter:
         self.hip_integral_method = hip_integral_method
         self.rhythmic_min_strides = rhythmic_min_strides
         self.rhythmic_cv_threshold = rhythmic_cv_threshold
+        self.rhythmic_cv_exit_threshold = max(
+            rhythmic_cv_exit_threshold, rhythmic_cv_threshold
+        )
         self.stride_duration_window = stride_duration_window
         self.output_mode = output_mode
 
@@ -185,7 +189,11 @@ class PhaseVariableSegmenter:
         )
 
     def _update_mode_switch(self, side: PhaseSideState) -> None:
-        """PW default; transition to unified on cross when rhythmic (Villarreal Sec. II-A)."""
+        """PW default; transition to unified on cross when rhythmic (Villarreal Sec. II-A).
+
+        Hysteresis: entering unified uses rhythmic_cv_threshold; leaving unified
+        only happens if stride CV exceeds the higher rhythmic_cv_exit_threshold.
+        """
         if self.output_mode == PhaseOutputMode.PW:
             side.active_mode = PhaseOutputMode.PW
             return
@@ -193,10 +201,16 @@ class PhaseVariableSegmenter:
             side.active_mode = PhaseOutputMode.UNIFIED
             return
 
+        # Higher CV bar to drop out of unified than to enter it.
+        cv_for_rhythmic = (
+            self.rhythmic_cv_exit_threshold
+            if side.active_mode == PhaseOutputMode.UNIFIED
+            else self.rhythmic_cv_threshold
+        )
         side.rhythmic = detect_rhythmic_walking(
             side.stride_durations,
             min_strides=self.rhythmic_min_strides,
-            cv_threshold=self.rhythmic_cv_threshold,
+            cv_threshold=cv_for_rhythmic,
         )
 
         if not side.rhythmic:
