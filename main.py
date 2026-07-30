@@ -39,7 +39,7 @@ phase_method = "auto"
 # Hip angle from motor encoder (replaces IMU global hip angle)
 # Anatomical limits relative to the zero-calibrated standing angle.
 # Total configured ROM is 55 deg: -15 deg extension to +40 deg flexion.
-hip_extension_deg = -15.0
+hip_extension_deg = -5.0
 hip_flexion_deg = 40.0
 hip_neutral_deg_l = 0.0
 hip_neutral_deg_r = 0.0
