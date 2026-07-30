@@ -27,8 +27,7 @@ subject = "AB01"
 trial_start_sec = 1
 target_duration_sec = 31
 target_time_range = 31
-# Temporary raw-encoder validation mode. Keep torque disabled while the hip
-# filter and PW normalization are bypassed in utils_hip_angle.py.
+# Keep torque disabled for the encoder and phase validation trial.
 exo_ON = False
 scale_factor = 0.0
 delay_factor = 0
@@ -307,21 +306,21 @@ def main():
 
         loop_time = start_time + (start_index - 1) / control_freq_Hz
         percent_gcL, percent_gcR = phase_segmenter.update_lr(
-            # Pass both zero-referenced motor encoders through without sign inversion.
-            raw_hip_encoder_l=current_pos_L,
+            # Flip only the left encoder into the anatomical sign convention.
+            raw_hip_encoder_l=-current_pos_L,
             raw_hip_encoder_r=current_pos_R,
             on_plate_l=on_plateL,
             on_plate_r=on_plateR,
             heel_strike_l=heel_strikeL,
             heel_strike_r=heel_strikeR,
             timestamp=loop_time,
-            raw_hip_velocity_l_deg_s=current_vel_L,
+            raw_hip_velocity_l_deg_s=-current_vel_L,
             raw_hip_velocity_r_deg_s=current_vel_R,
         )
 
-        data_to_save["mtr_pos_L"].append(current_pos_L)
+        data_to_save["mtr_pos_L"].append(-current_pos_L)
         data_to_save["mtr_pos_R"].append(current_pos_R)
-        data_to_save["mtr_vel_L"].append(current_vel_L)
+        data_to_save["mtr_vel_L"].append(-current_vel_L)
         data_to_save["mtr_vel_R"].append(current_vel_R)
         data_to_save["percent_gcL"].append(percent_gcL)
         data_to_save["percent_gcR"].append(percent_gcR)
@@ -362,7 +361,7 @@ def main():
         pulse_scheduler.update(current_time)
         data_to_save["gpio_output"].append(gpio_pulse.read_state())
 
-        teleplot.sendValue("pos_L", current_pos_L)
+        teleplot.sendValue("pos_L", -current_pos_L)
         teleplot.sendValue("pos_R", current_pos_R)
         teleplot.sendValue("gc_L", percent_gcL)
         teleplot.sendValue("gc_R", percent_gcR)
