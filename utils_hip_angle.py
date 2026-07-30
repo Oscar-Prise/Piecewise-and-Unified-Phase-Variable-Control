@@ -15,15 +15,18 @@ class HipAngleProcessor:
 
     def __init__(
         self,
-        rom_deg: float = 40.0,
+        extension_deg: float = -15.0,
+        flexion_deg: float = 40.0,
         neutral_deg: float = 0.0,
         cutoff_hz: float = 6.0,
         control_freq_Hz: float = 100.0,
     ) -> None:
-        if rom_deg <= 0:
-            raise ValueError("rom_deg must be positive")
+        if flexion_deg <= extension_deg:
+            raise ValueError("flexion_deg must be greater than extension_deg")
 
-        self.rom_deg = rom_deg
+        self.extension_deg = extension_deg
+        self.flexion_deg = flexion_deg
+        self.rom_deg = flexion_deg - extension_deg
         self.neutral_deg = neutral_deg
 
         # First-order low-pass alpha = dt / (RC + dt); alpha = 1 disables filtering.
@@ -37,7 +40,7 @@ class HipAngleProcessor:
         self.filtered_deg = 0.0
         self.qH_deg = 0.0
         self.x_pw = 0.25
-        self.x_before_offset = 0.0
+        self.x_unclipped = 0.0
         self.saturated = False
         self._initialized = False
 
@@ -47,7 +50,7 @@ class HipAngleProcessor:
         self.filtered_deg = 0.0
         self.qH_deg = 0.0
         self.x_pw = 0.25
-        self.x_before_offset = 0.0
+        self.x_unclipped = 0.0
         self.saturated = False
         self._initialized = False
 
@@ -65,11 +68,14 @@ class HipAngleProcessor:
 
         self.qH_deg = self.filtered_deg
 
-        # Map hip angle to PW normalized variable x (Villarreal 2017, Fig. 4):
-        # divide by 2*RoM, saturate to [-0.25, 0.25], then offset by +0.25 so x
-        # starts near zero at heel strike.
-        self.x_before_offset = self.qH_deg / (2.0 * self.rom_deg)
-        self.saturated = self.x_before_offset > 0.25 or self.x_before_offset < -0.25
-        self.x_pw = float(np.clip(self.x_before_offset, -0.25, 0.25)) + 0.25
+        # Map the anatomical range asymmetrically onto PW x in [0, 0.5]:
+        # maximum extension -> 0, maximum flexion -> 0.5.
+        self.x_unclipped = 0.5 * (
+            (self.qH_deg - self.extension_deg) / self.rom_deg
+        )
+        self.saturated = (
+            self.qH_deg < self.extension_deg or self.qH_deg > self.flexion_deg
+        )
+        self.x_pw = float(np.clip(self.x_unclipped, 0.0, 0.5))
 
         return self.qH_deg, self.x_pw, self.saturated

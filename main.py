@@ -36,7 +36,10 @@ body_mass_kg = 70
 phase_method = "auto"
 
 # Hip angle from motor encoder (replaces IMU global hip angle)
-hip_rom_deg = 40.0
+# Anatomical limits relative to the zero-calibrated standing angle.
+# Total configured ROM is 55 deg: -15 deg extension to +40 deg flexion.
+hip_extension_deg = -15.0
+hip_flexion_deg = 40.0
 hip_neutral_deg_l = 0.0
 hip_neutral_deg_r = 0.0
 hip_cutoff_hz = 6.0
@@ -227,7 +230,8 @@ def main():
     )
 
     phase_segmenter = PhaseVariableSegmenter(
-        rom_deg=hip_rom_deg,
+        extension_deg=hip_extension_deg,
+        flexion_deg=hip_flexion_deg,
         neutral_deg_l=hip_neutral_deg_l,
         neutral_deg_r=hip_neutral_deg_r,
         stance_transition_s=stance_transition_s,
@@ -302,20 +306,22 @@ def main():
         loop_time = start_time + (start_index - 1) / control_freq_Hz
         percent_gcL, percent_gcR = phase_segmenter.update_lr(
             raw_hip_encoder_l=current_pos_L,
-            raw_hip_encoder_r=-current_pos_R,
+            # Use the same anatomical convention on both sides:
+            # positive = hip flexion, negative = hip extension.
+            raw_hip_encoder_r=current_pos_R,
             on_plate_l=on_plateL,
             on_plate_r=on_plateR,
             heel_strike_l=heel_strikeL,
             heel_strike_r=heel_strikeR,
             timestamp=loop_time,
             raw_hip_velocity_l_deg_s=current_vel_L,
-            raw_hip_velocity_r_deg_s=-current_vel_R,
+            raw_hip_velocity_r_deg_s=current_vel_R,
         )
 
         data_to_save["mtr_pos_L"].append(current_pos_L)
-        data_to_save["mtr_pos_R"].append(-current_pos_R)
+        data_to_save["mtr_pos_R"].append(current_pos_R)
         data_to_save["mtr_vel_L"].append(current_vel_L)
-        data_to_save["mtr_vel_R"].append(-current_vel_R)
+        data_to_save["mtr_vel_R"].append(current_vel_R)
         data_to_save["percent_gcL"].append(percent_gcL)
         data_to_save["percent_gcR"].append(percent_gcR)
         data_to_save["phi_pwL"].append(phase_segmenter.left.phi_pw)

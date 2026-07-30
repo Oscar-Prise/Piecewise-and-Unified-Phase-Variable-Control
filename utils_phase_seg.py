@@ -111,7 +111,8 @@ class PhaseVariableSegmenter:
 
     def __init__(
         self,
-        rom_deg: float = 40.0,
+        extension_deg: float = -15.0,
+        flexion_deg: float = 40.0,
         neutral_deg_l: float = 0.0,
         neutral_deg_r: float = 0.0,
         stance_transition_s: float = DEFAULT_STANCE_TRANSITION,
@@ -138,7 +139,8 @@ class PhaseVariableSegmenter:
 
         self.left = PhaseSideState(
             hip=HipAngleProcessor(
-                rom_deg=rom_deg,
+                extension_deg=extension_deg,
+                flexion_deg=flexion_deg,
                 neutral_deg=neutral_deg_l,
                 cutoff_hz=hip_cutoff_hz,
                 control_freq_Hz=control_freq_Hz,
@@ -146,7 +148,8 @@ class PhaseVariableSegmenter:
         )
         self.right = PhaseSideState(
             hip=HipAngleProcessor(
-                rom_deg=rom_deg,
+                extension_deg=extension_deg,
+                flexion_deg=flexion_deg,
                 neutral_deg=neutral_deg_r,
                 cutoff_hz=hip_cutoff_hz,
                 control_freq_Hz=control_freq_Hz,
