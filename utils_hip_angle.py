@@ -59,23 +59,32 @@ class HipAngleProcessor:
         # Express encoder reading relative to the neutral standing angle.
         qH = raw_encoder_deg - self.neutral_deg
 
-        # Single-step first-order low-pass; seed with the first sample.
-        if not self._initialized:
-            self.filtered_deg = qH
-            self._initialized = True
-        else:
-            self.filtered_deg = self.alpha * qH + (1.0 - self.alpha) * self.filtered_deg
+        # TEMPORARILY BYPASSED FOR THE ZERO-TORQUE RAW-ENCODER TEST:
+        # # Step 5: single-step first-order low-pass.
+        # if not self._initialized:
+        #     self.filtered_deg = qH
+        #     self._initialized = True
+        # else:
+        #     self.filtered_deg = (
+        #         self.alpha * qH + (1.0 - self.alpha) * self.filtered_deg
+        #     )
+        # self.qH_deg = self.filtered_deg
+        self.qH_deg = qH
 
-        self.qH_deg = self.filtered_deg
+        # # Step 6: asymmetric PW normalization and saturation.
+        # self.x_unclipped = 0.5 * (
+        #     (self.qH_deg - self.extension_deg) / self.rom_deg
+        # )
+        # self.saturated = (
+        #     self.qH_deg < self.extension_deg
+        #     or self.qH_deg > self.flexion_deg
+        # )
+        # self.x_pw = float(np.clip(self.x_unclipped, 0.0, 0.5))
 
-        # Map the anatomical range asymmetrically onto PW x in [0, 0.5]:
-        # maximum extension -> 0, maximum flexion -> 0.5.
-        self.x_unclipped = 0.5 * (
-            (self.qH_deg - self.extension_deg) / self.rom_deg
-        )
-        self.saturated = (
-            self.qH_deg < self.extension_deg or self.qH_deg > self.flexion_deg
-        )
-        self.x_pw = float(np.clip(self.x_unclipped, 0.0, 0.5))
+        # Hold PW at a safe placeholder while normalization is disabled.
+        # Phase output is intentionally invalid during this diagnostic test.
+        self.x_unclipped = 0.25
+        self.saturated = False
+        self.x_pw = 0.25
 
         return self.qH_deg, self.x_pw, self.saturated

@@ -27,7 +27,9 @@ subject = "AB01"
 trial_start_sec = 1
 target_duration_sec = 31
 target_time_range = 31
-exo_ON = True
+# Temporary raw-encoder validation mode. Keep torque disabled while the hip
+# filter and PW normalization are bypassed in utils_hip_angle.py.
+exo_ON = False
 scale_factor = 0.0
 delay_factor = 0
 body_mass_kg = 70
@@ -305,9 +307,8 @@ def main():
 
         loop_time = start_time + (start_index - 1) / control_freq_Hz
         percent_gcL, percent_gcR = phase_segmenter.update_lr(
+            # Pass both zero-referenced motor encoders through without sign inversion.
             raw_hip_encoder_l=current_pos_L,
-            # Use the same anatomical convention on both sides:
-            # positive = hip flexion, negative = hip extension.
             raw_hip_encoder_r=current_pos_R,
             on_plate_l=on_plateL,
             on_plate_r=on_plateR,
