@@ -25,10 +25,10 @@ from utils_unified_phase import HipIntegralMethod
 # Trial
 subject = "AB01"
 trial_start_sec = 1
-target_duration_sec = 81
-target_time_range = 81
+target_duration_sec = 31
+target_time_range = 31
 exo_ON = True
-scale_factor = 0.5
+scale_factor = 0.0
 delay_factor = 0
 body_mass_kg = 70
 
