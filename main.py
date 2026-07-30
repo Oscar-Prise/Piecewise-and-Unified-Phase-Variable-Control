@@ -28,8 +28,8 @@ trial_start_sec = 1
 target_duration_sec = 31
 target_time_range = 31
 # Keep torque disabled for the encoder and phase validation trial.
-exo_ON = False
-scale_factor = 0.0
+exo_ON = True
+scale_factor = 0.5
 delay_factor = 0
 body_mass_kg = 70
 
