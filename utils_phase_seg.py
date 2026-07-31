@@ -1,8 +1,8 @@
 """Piecewise and unified phase-variable gait segmentation (Villarreal et al. 2017).
 
 Hip angle is read from the exoskeleton motor encoder (via utils_hip_angle).
-Ground contact and heel strike come from Vicon COP (utils_contact) until onboard
-FSR is available.
+Ground contact comes from Vicon COP until onboard FSR is available; each
+contact False→True edge defines heel strike.
 
 Output percent_gc is in [0, 1], compatible with HipTorqueProfile / t2_spline.
 """
@@ -13,7 +13,6 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 
-from utils_contact import consume_heel_strike_pulse, is_stance
 from utils_hip_angle import HipAngleProcessor
 from utils_pw_phase import DEFAULT_STANCE_TRANSITION, compute_pw_phase
 from utils_rhythmic import detect_phase_crossing, detect_rhythmic_walking
@@ -64,7 +63,6 @@ class PhaseSideState:
     time_hs: float = 0.0
     prev_time_hs: float = 0.0
     stride_durations: list[float] = field(default_factory=list)
-    hs_pulse_latched: bool = False
     heel_strike_pulse: bool = False
 
     # Mode switching
@@ -96,7 +94,6 @@ class PhaseSideState:
         self.time_hs = 0.0
         self.prev_time_hs = 0.0
         self.stride_durations = []
-        self.hs_pulse_latched = False
         self.heel_strike_pulse = False
         self.active_mode = PhaseOutputMode.PW
         self.rhythmic = False
@@ -243,7 +240,6 @@ class PhaseVariableSegmenter:
         side: PhaseSideState,
         raw_hip_encoder_deg: float,
         on_plate: bool,
-        heel_strike: bool,
         timestamp: float | None = None,
         raw_hip_velocity_deg_s: float | None = None,
     ) -> None:
@@ -257,7 +253,8 @@ class PhaseVariableSegmenter:
 
         qH_deg, x_pw, saturated = side.hip.update(raw_hip_encoder_deg)
         side.saturated = saturated
-        side.stance = is_stance(on_plate)
+        was_stance = side.stance
+        side.stance = bool(on_plate)
 
         side.phi_pw_prev = side.phi_pw
         side.phi_pw = compute_pw_phase(x_pw, side.stance, s=self.stance_transition_s)
@@ -286,15 +283,18 @@ class PhaseVariableSegmenter:
             side.theta_int_min,
         )
 
-        pulse, side.hs_pulse_latched = consume_heel_strike_pulse(
-            heel_strike, side.hs_pulse_latched
-        )
+        # A contact False→True edge is the authoritative heel-strike event.
+        pulse = side.stance and not was_stance
         side.heel_strike_pulse = pulse
         if pulse:
             self._handle_heel_strike(side, timestamp)
 
         side.phi_unified_prev = side.phi_unified
-        if side.unified_ready:
+        if pulse and side.unified_ready:
+            # Contact defines the gait-cycle boundary even if the encoder
+            # phase portrait has accumulated a small amount of drift.
+            side.phi_unified = 0.0
+        elif side.unified_ready:
             side.phi_unified = compute_unified_phase(side.theta, side.theta_int, side.k)
         else:
             side.phi_unified = side.phi_pw
@@ -308,8 +308,6 @@ class PhaseVariableSegmenter:
         raw_hip_encoder_r: float,
         on_plate_l: bool,
         on_plate_r: bool,
-        heel_strike_l: bool,
-        heel_strike_r: bool,
         timestamp: float | None = None,
         raw_hip_velocity_l_deg_s: float | None = None,
         raw_hip_velocity_r_deg_s: float | None = None,
@@ -319,7 +317,6 @@ class PhaseVariableSegmenter:
             self.left,
             raw_hip_encoder_l,
             on_plate_l,
-            heel_strike_l,
             timestamp,
             raw_hip_velocity_deg_s=raw_hip_velocity_l_deg_s,
         )
@@ -327,7 +324,6 @@ class PhaseVariableSegmenter:
             self.right,
             raw_hip_encoder_r,
             on_plate_r,
-            heel_strike_r,
             timestamp,
             raw_hip_velocity_deg_s=raw_hip_velocity_r_deg_s,
         )

@@ -1,8 +1,8 @@
 """Offline replay and comparison plots for phase-variable segmentation.
 
 Examples (all options can also be combined with --save out.png):
-  python utils_plot_phase.py "test_run\\AB01_1_phase_auto_scale_0.5_input_motor.csv"
-  python utils_plot_phase.py "test_run\\AB01_1_phase_auto_scale_0.5_input_motor.csv" --everything
+  python utils_plot_phase.py "test_run\\AB01_2_phase_auto_scale_0.5_input_motor.csv"
+  python utils_plot_phase.py "test_run\\AB01_2_phase_auto_scale_0.5_input_motor.csv" --everything
   python utils_plot_phase.py "test_run\\AB01_1_phase_auto_scale_0.5_input_motor.csv" --torque-only
 
 Selectable signal suffixes:
@@ -38,13 +38,6 @@ from utils_phase_seg import PhaseOutputMode, PhaseVariableSegmenter
 from utils_pw_phase import DEFAULT_STANCE_TRANSITION
 
 
-def _rising_edges(flags: pd.Series) -> np.ndarray:
-    """True on False→True transitions (synthetic heel-strike pulses)."""
-    values = flags.astype(bool).to_numpy()
-    prev = np.concatenate(([False], values[:-1]))
-    return (~prev) & values
-
-
 def _contact_from_motor_log(motor_df: pd.DataFrame) -> pd.DataFrame:
     """Build contact flags from columns already stored in *_input_motor.csv."""
     n = len(motor_df)
@@ -59,22 +52,10 @@ def _contact_from_motor_log(motor_df: pd.DataFrame) -> pd.DataFrame:
         else pd.Series(np.zeros(n, dtype=bool))
     )
 
-    if "heel_strikeL" in motor_df.columns:
-        hs_l = motor_df["heel_strikeL"].astype(bool).to_numpy()
-    else:
-        hs_l = _rising_edges(on_l)
-
-    if "heel_strikeR" in motor_df.columns:
-        hs_r = motor_df["heel_strikeR"].astype(bool).to_numpy()
-    else:
-        hs_r = _rising_edges(on_r)
-
     return pd.DataFrame(
         {
             "on_plateL": on_l.to_numpy(),
             "on_plateR": on_r.to_numpy(),
-            "heel_strikeL": hs_l,
-            "heel_strikeR": hs_r,
         }
     )
 
@@ -124,8 +105,6 @@ def replay_motor_log(
             raw_hip_encoder_r=pos_r,
             on_plate_l=bool(contact_df["on_plateL"].iloc[i]),
             on_plate_r=bool(contact_df["on_plateR"].iloc[i]),
-            heel_strike_l=bool(contact_df["heel_strikeL"].iloc[i]),
-            heel_strike_r=bool(contact_df["heel_strikeR"].iloc[i]),
             timestamp=timestamp,
         )
 

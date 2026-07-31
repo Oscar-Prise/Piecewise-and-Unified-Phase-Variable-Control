@@ -19,8 +19,6 @@ from __future__ import annotations
 import math
 from enum import Enum
 
-import numpy as np
-
 DEFAULT_K_SCALE = 1.0
 
 
@@ -48,9 +46,14 @@ def compute_k_scale(
 
 
 def compute_unified_phase(theta: float, theta_int: float, k: float) -> float:
-    """Unified phase variable phi in [0, 1] (Eq. 2 / Eq. 4)."""
-    phi = (math.atan2(k * theta_int, theta) + math.pi) / (2.0 * math.pi)
-    return float(np.clip(phi, 0.0, 1.0))
+    """Unified phase in [0, 1), rotated so positive-flexion heel strike is zero.
+
+    Villarreal Eq. (2)/(4) places phase zero on the negative hip-angle axis.
+    Our encoder convention is positive in flexion, so wrapping the raw portrait
+    angle rotates the phase origin by half a cycle without changing its shape.
+    """
+    angle = math.atan2(k * theta_int, theta)
+    return float((angle % math.tau) / math.tau)
 
 
 def compute_adjusted_hip_angle(qH_deg: float, x0: float) -> float:

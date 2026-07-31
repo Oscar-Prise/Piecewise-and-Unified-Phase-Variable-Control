@@ -80,7 +80,7 @@ frame_length = 95
 teleplot_host = "127.0.0.1"
 teleplot_port = 47269
 
-# Vicon / mocap server (Vicon-Computer must stream on_plate* and heel_strike*)
+# Vicon / mocap server (Vicon-Computer must stream on_plate*)
 mocap_server_ip = "172.24.44.177"
 mocap_port = 11
 
@@ -103,6 +103,7 @@ data_to_save = {
     "phi_unifiedL": [], "phi_unifiedR": [],
     "phase_modeL": [], "phase_modeR": [],
     "on_plateL": [], "on_plateR": [],
+    "heel_strikeL": [], "heel_strikeR": [],
     "hip_satL": [], "hip_satR": [],
     "gpio_output": [],  # GPIO
 }
@@ -152,6 +153,7 @@ def save_data(start_rec_sec=0, trial_time_sec=None):
         'phi_unifiedL', 'phi_unifiedR',
         'phase_modeL', 'phase_modeR',
         'on_plateL', 'on_plateR',
+        'heel_strikeL', 'heel_strikeR',
         'hip_satL', 'hip_satR',
     ]
     timestamp_sliced = [t - start_rec_sec for t in data_np["timestamp"][start_idx:end_idx]]
@@ -260,7 +262,6 @@ def main():
 
     percent_gcL, percent_gcR = 0.0, 0.0
     on_plateL, on_plateR = False, False
-    heel_strikeL, heel_strikeR = False, False
 
     if trigger_type == "mocap":
         print("Waiting for start trigger...\n")
@@ -285,8 +286,6 @@ def main():
             if mocap_trigger.first_data_received.is_set():
                 on_plateL = mocap_trigger.send_on_plateL
                 on_plateR = mocap_trigger.send_on_plateR
-                heel_strikeL = mocap_trigger.send_heel_strikeL
-                heel_strikeR = mocap_trigger.send_heel_strikeR
                 mocap_data_available = True
 
                 with open(mocap_log_csv, "a", newline="", encoding="utf-8") as f:
@@ -297,8 +296,6 @@ def main():
                             mocap_trigger.recv_time,
                             on_plateR,
                             on_plateL,
-                            heel_strikeR,
-                            heel_strikeL,
                         ]
                     )
             else:
@@ -311,8 +308,6 @@ def main():
             raw_hip_encoder_r=current_pos_R,
             on_plate_l=on_plateL,
             on_plate_r=on_plateR,
-            heel_strike_l=heel_strikeL,
-            heel_strike_r=heel_strikeR,
             timestamp=loop_time,
             raw_hip_velocity_l_deg_s=-current_vel_L,
             raw_hip_velocity_r_deg_s=current_vel_R,
@@ -332,6 +327,12 @@ def main():
         data_to_save["phase_modeR"].append(phase_segmenter.right.active_mode.value)
         data_to_save["on_plateL"].append(int(on_plateL))
         data_to_save["on_plateR"].append(int(on_plateR))
+        data_to_save["heel_strikeL"].append(
+            int(phase_segmenter.left.heel_strike_pulse)
+        )
+        data_to_save["heel_strikeR"].append(
+            int(phase_segmenter.right.heel_strike_pulse)
+        )
         data_to_save["hip_satL"].append(int(phase_segmenter.left.saturated))
         data_to_save["hip_satR"].append(int(phase_segmenter.right.saturated))
 
