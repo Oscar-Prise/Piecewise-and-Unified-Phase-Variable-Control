@@ -1,8 +1,8 @@
 """Offline replay and comparison plots for phase-variable segmentation.
 
 Examples (all options can also be combined with --save out.png):
-  python utils_plot_phase.py "test_run\\AB01_2_phase_auto_scale_0.5_input_motor.csv"
-  python utils_plot_phase.py "test_run\\AB01_2_phase_auto_scale_0.5_input_motor.csv" --everything
+  python utils_plot_phase.py "test_run\\AB01_3_phase_auto_scale_0.5_input_motor.csv"
+  python utils_plot_phase.py "test_run\\AB01_3_phase_auto_scale_0.5_input_motor.csv" --everything
   python utils_plot_phase.py "test_run\\AB01_1_phase_auto_scale_0.5_input_motor.csv" --torque-only
 
 Selectable signal suffixes:

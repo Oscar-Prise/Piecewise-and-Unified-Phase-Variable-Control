@@ -20,6 +20,8 @@ import math
 from enum import Enum
 
 DEFAULT_K_SCALE = 1.0
+# Portrait typically wraps ~0.12 cycle before force-plate contact (AB01 walking).
+DEFAULT_PHASE_OFFSET = 0.12
 
 
 class HipIntegralMethod(str, Enum):
@@ -46,14 +48,20 @@ def compute_k_scale(
 
 
 def compute_unified_phase(theta: float, theta_int: float, k: float) -> float:
-    """Unified phase in [0, 1), rotated so positive-flexion heel strike is zero.
+    """Raw unified phase in [0, 1) from the encoder phase portrait.
 
     Villarreal Eq. (2)/(4) places phase zero on the negative hip-angle axis.
     Our encoder convention is positive in flexion, so wrapping the raw portrait
-    angle rotates the phase origin by half a cycle without changing its shape.
+    angle rotates that origin by half a cycle. Contact alignment is applied
+    separately via ``apply_phase_offset``.
     """
     angle = math.atan2(k * theta_int, theta)
     return float((angle % math.tau) / math.tau)
+
+
+def apply_phase_offset(phi_portrait: float, offset: float) -> float:
+    """Shift portrait phase so contact heel strike maps near zero."""
+    return float((phi_portrait - offset) % 1.0)
 
 
 def compute_adjusted_hip_angle(qH_deg: float, x0: float) -> float:

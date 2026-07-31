@@ -54,6 +54,10 @@ rhythmic_min_strides = 4
 rhythmic_cv_threshold = 0.20
 rhythmic_cv_exit_threshold = 0.40
 stride_duration_window = 4
+# Unified portrait usually wraps a bit before force-plate contact. Start with
+# this seed lead; after the 2nd heel strike replace it with the mean portrait
+# phase measured at contact. Used to hold late-swing phase until contact.
+default_phase_offset = 0.12
 
 # Trigger: "mocap" or "typing"
 trigger_type = "mocap"
@@ -246,6 +250,7 @@ def main():
         stride_duration_window=stride_duration_window,
         output_mode=PhaseOutputMode(phase_method),
         hip_integral_method=HipIntegralMethod(hip_integral_method),
+        default_phase_offset=default_phase_offset,
     )
     phase_segmenter.reset()
 

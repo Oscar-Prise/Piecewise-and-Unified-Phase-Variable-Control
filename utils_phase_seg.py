@@ -18,6 +18,7 @@ from utils_pw_phase import DEFAULT_STANCE_TRANSITION, compute_pw_phase
 from utils_rhythmic import detect_phase_crossing, detect_rhythmic_walking
 from utils_unified_phase import (
     DEFAULT_K_SCALE,
+    DEFAULT_PHASE_OFFSET,
     HipIntegralMethod,
     compute_adjusted_hip_angle,
     compute_drift_increment,
@@ -65,6 +66,10 @@ class PhaseSideState:
     stride_durations: list[float] = field(default_factory=list)
     heel_strike_pulse: bool = False
 
+    # Portrait→contact alignment (starts hardcoded, then measured at HS)
+    phi_offset: float = DEFAULT_PHASE_OFFSET
+    phi_offset_samples: list[float] = field(default_factory=list)
+
     # Mode switching
     active_mode: PhaseOutputMode = PhaseOutputMode.PW
     rhythmic: bool = False
@@ -95,6 +100,8 @@ class PhaseSideState:
         self.prev_time_hs = 0.0
         self.stride_durations = []
         self.heel_strike_pulse = False
+        self.phi_offset = DEFAULT_PHASE_OFFSET
+        self.phi_offset_samples = []
         self.active_mode = PhaseOutputMode.PW
         self.rhythmic = False
         self.pending_unified = False
@@ -121,6 +128,7 @@ class PhaseVariableSegmenter:
         stride_duration_window: int = 4,
         output_mode: PhaseOutputMode = PhaseOutputMode.AUTO,
         hip_integral_method: HipIntegralMethod = HipIntegralMethod.TRAPEZOID_POSITION,
+        default_phase_offset: float = DEFAULT_PHASE_OFFSET,
     ) -> None:
         self.stance_transition_s = stance_transition_s
         self.control_freq_Hz = control_freq_Hz
@@ -133,6 +141,7 @@ class PhaseVariableSegmenter:
         )
         self.stride_duration_window = stride_duration_window
         self.output_mode = output_mode
+        self.default_phase_offset = float(default_phase_offset) % 1.0
 
         self.left = PhaseSideState(
             hip=HipAngleProcessor(
@@ -141,7 +150,8 @@ class PhaseVariableSegmenter:
                 neutral_deg=neutral_deg_l,
                 cutoff_hz=hip_cutoff_hz,
                 control_freq_Hz=control_freq_Hz,
-            )
+            ),
+            phi_offset=self.default_phase_offset,
         )
         self.right = PhaseSideState(
             hip=HipAngleProcessor(
@@ -150,12 +160,15 @@ class PhaseVariableSegmenter:
                 neutral_deg=neutral_deg_r,
                 cutoff_hz=hip_cutoff_hz,
                 control_freq_Hz=control_freq_Hz,
-            )
+            ),
+            phi_offset=self.default_phase_offset,
         )
 
     def reset(self) -> None:
         self.left.reset()
         self.right.reset()
+        self.left.phi_offset = self.default_phase_offset
+        self.right.phi_offset = self.default_phase_offset
 
     def both_unified_ready(self) -> bool:
         return self.left.unified_ready and self.right.unified_ready
@@ -286,16 +299,46 @@ class PhaseVariableSegmenter:
         # A contact False→True edge is the authoritative heel-strike event.
         pulse = side.stance and not was_stance
         side.heel_strike_pulse = pulse
+
+        # Measure portrait phase before the heel-strike integral reset.
+        phi_portrait = compute_unified_phase(side.theta, side.theta_int, side.k)
         if pulse:
+            # Seed with hardcoded lead; after the 2nd HS use mean portrait phase
+            # observed at contact (how far the portrait is past its natural wrap).
+            if side.stride_count >= 1:
+                lead = phi_portrait % 1.0
+                # Only keep post-wrap leads; values near 1 mean the portrait has
+                # not wrapped yet, and bounce contacts are often near mid-cycle.
+                if lead <= 0.35:
+                    side.phi_offset_samples.append(lead)
+                    side.phi_offset_samples = side.phi_offset_samples[
+                        -self.stride_duration_window :
+                    ]
             self._handle_heel_strike(side, timestamp)
+            if side.stride_count >= 2 and side.phi_offset_samples:
+                side.phi_offset = sum(side.phi_offset_samples) / len(
+                    side.phi_offset_samples
+                )
+            phi_portrait = compute_unified_phase(side.theta, side.theta_int, side.k)
 
         side.phi_unified_prev = side.phi_unified
-        if pulse and side.unified_ready:
-            # Contact defines the gait-cycle boundary even if the encoder
-            # phase portrait has accumulated a small amount of drift.
-            side.phi_unified = 0.0
-        elif side.unified_ready:
-            side.phi_unified = compute_unified_phase(side.theta, side.theta_int, side.k)
+        if side.unified_ready:
+            # After contact resets the integral, the portrait origin is already
+            # heel strike. Subtracting phi_offset here would jump phase to ~0.88.
+            # Use phi_offset as the expected early-wrap lead: hold late-swing
+            # phase near 1 until the next contact, then snap to 0.
+            if pulse:
+                phi = 0.0
+            else:
+                phi = phi_portrait
+                if (
+                    not side.stance
+                    and side.phi_unified_prev
+                    > max(0.85, 1.0 - side.phi_offset - 0.05)
+                    and phi < max(0.5, side.phi_offset + 0.2)
+                ):
+                    phi = side.phi_unified_prev
+            side.phi_unified = phi
         else:
             side.phi_unified = side.phi_pw
 
