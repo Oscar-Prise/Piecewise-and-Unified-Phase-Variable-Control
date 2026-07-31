@@ -29,9 +29,9 @@ target_duration_sec = 31
 target_time_range = 31
 # Keep torque disabled for the encoder and phase validation trial.
 exo_ON = True
-scale_factor = 0.5
+scale_factor = 0.8
 delay_factor = 0
-body_mass_kg = 70
+body_mass_kg = 74
 
 # Phase-variable method: "pw", "unified", or "auto" (Villarreal Sec. II-A)
 phase_method = "auto"
